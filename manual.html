@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ECOPACK AI - Material Recommendation</title>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 50px auto; }
+        label { display: block; margin-top: 10px; }
+        input, select { width: 100%; padding: 6px; margin-top: 4px; }
+        button { margin-top: 20px; padding: 10px; width: 100%; background-color: #4CAF50; color: white; border: none; font-size: 16px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .result { margin-top: 20px; padding: 10px; background-color: #f2f2f2; }
+        h3, h4 { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<h2>ECOPACK AI - Material Recommendation</h2>
+
+<form id="recommendForm">
+    <label for="shipping_category">Shipping Category:</label>
+    <select id="shipping_category">
+        <option value="Domestic">Domestic</option>
+        <option value="International">International</option>
+    </select>
+
+    <label for="fragile">Fragile (1 = Yes, 0 = No):</label>
+    <input type="number" id="fragile" value="0" min="0" max="1">
+
+    <label for="weight">Weight (kg):</label>
+    <input type="number" id="weight" value="10" min="0">
+
+    <label for="volume">Volume (m³):</label>
+    <input type="number" id="volume" value="1" min="0">
+
+    <label for="material">Material Type (optional – can leave default):</label>
+    <select id="material">
+        <option value="Bamboo Fiber">Bamboo Fiber</option>
+        <option value="Bioplastic (PLA)" selected>Bioplastic (PLA)</option>
+        <option value="Mushroom Mycelium">Mushroom Mycelium</option>
+        <option value="Recycled Cardboard">Recycled Cardboard</option>
+    </select>
+
+    <button type="submit">Get Prediction</button>
+</form>
+
+<div class="result" id="result"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("recommendForm");
+    const resultDiv = document.getElementById("result");
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        // Collect form inputs
+        const data = {
+            shipping_category: document.getElementById("shipping_category").value,
+            fragile: parseInt(document.getElementById("fragile").value),
+            weight: parseFloat(document.getElementById("weight").value),
+            volume: parseFloat(document.getElementById("volume").value),
+            material: document.getElementById("material").value
+        };
+
+        // Basic validation
+        if(data.weight <= 0){
+            resultDiv.innerHTML = `<strong>Error:</strong> Weight must be positive.`;
+            return;
+        }
+        if(data.fragile !== 0 && data.fragile !== 1){
+            resultDiv.innerHTML = `<strong>Error:</strong> Fragile must be 0 or 1.`;
+            return;
+        }
+
+        try {
+            const response = await fetch("http://127.0.0.1:5000/recommend/api", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+
+            const resJson = await response.json();
+
+            if(resJson.error){
+                resultDiv.innerHTML = `<strong>Error:</strong> ${resJson.error}`;
+            } else {
+                // Display best material and all predictions
+                resultDiv.innerHTML = `
+                    <h3>Best Material Recommendation</h3>
+                    <strong>Material:</strong> ${resJson.recommendation.material}<br>
+                    <strong>Cost:</strong> ${resJson.recommendation.predicted_cost.toFixed(2)}<br>
+                    <strong>CO2:</strong> ${resJson.recommendation.predicted_co2.toFixed(2)}
+                    <hr>
+                    <h4>All Material Predictions:</h4>
+                    ${resJson.all_predictions.map(p => `
+                        <strong>${p.material}</strong> - Cost: ${p.predicted_cost.toFixed(2)}, CO2: ${p.predicted_co2.toFixed(2)}
+                    `).join("<br>")}
+                `;
+            }
+        } catch (err) {
+            resultDiv.innerHTML = `<strong>Connection Error:</strong> Make sure backend is running!`;
+        }
+    });
+});
+</script>
+
+</body>
+</html>
